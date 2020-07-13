@@ -1,0 +1,26 @@
+class Palindrome {
+  field String testString;
+
+  constructor Palindrome new(String text) {
+    let testString = text;
+    return this;
+  }
+
+  method boolean isPalindrome() {
+    var boolean result;
+    var int currentIndex;
+    let result = true;
+    let currentIndex = 0;
+
+    while (currentIndex < testString.length()) {
+      let result = result & (testString.charAt(currentIndex) = testString.charAt(testString.length() - currentIndex - 1));
+      let currentIndex = currentIndex + 1;
+    }
+    return result;
+  }
+
+  method void dispose() {
+    do Memory.deAlloc(this);
+    return;
+  }
+}

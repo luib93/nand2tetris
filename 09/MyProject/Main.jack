@@ -1,0 +1,15 @@
+class Main {
+  function void main() {
+    var String in;
+    var Palindrome p;
+    let in = Keyboard.readLine("Enter string: ");
+    let p = Palindrome.new(in);
+    if (p.isPalindrome() = true) {
+      do Output.printString("Yes, it is a palindrome.");
+    } else {
+      do Output.printString("No, it is not a palindrome.");
+    }
+    do p.dispose();
+    return;
+  }
+}
