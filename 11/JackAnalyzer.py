@@ -245,6 +245,7 @@ class CompilationEngine:
 
         self.class_name = None
         self.method_name = None
+        self.label_count = 0
 
     def compile_class(self):
         # 'class' className '{' classVarDec* subroutineDec* '}'
@@ -550,87 +551,87 @@ class CompilationEngine:
         self.tokenizer.advance()
 
     def compile_if(self):
-        self._write(f"<ifStatement>")
+        # 'if' '('expression')' '{'statements'}'('else''{'statements'}')?
         if self.tokenizer.keyword() != TokenKeyword.IF:
             raise Exception(f"Unexpected token {self.tokenizer.keyword()}")
-        self._write_keyword()
 
         self.tokenizer.advance()
         if self.tokenizer.symbol() != "(":
             raise Exception(f"Unexpected symbol {self.tokenizer.symbol()}")
-        self._write_symbol()
 
         self.tokenizer.advance()
         self.compile_expression()
+        self.writer.write_arithmetic(VMArithmetic.NOT)
+        else_label = f'L{self.label_count}'
+        end_label = f'L{self.label_count + 1}'
+        self.label_count += 2
+        self.writer.write_if(else_label)
 
         if self.tokenizer.symbol() != ")":
             raise Exception(f"Unexpected symbol {self.tokenizer.symbol()}")
-        self._write_symbol()
 
         self.tokenizer.advance()
         if self.tokenizer.symbol() != "{":
             raise Exception(f"Unexpected symbol {self.tokenizer.symbol()}")
-        self._write_symbol()
 
         self.tokenizer.advance()
         self.compile_statements()
+        self.writer.write_goto(end_label)
 
         if self.tokenizer.symbol() != "}":
             raise Exception(f"Unexpected symbol {self.tokenizer.symbol()}")
-        self._write_symbol()
 
         self.tokenizer.advance()
+        self.writer.write_label(else_label)
         if (
             self.tokenizer.token_type() == TokenType.KEYWORD
             and self.tokenizer.keyword() == TokenKeyword.ELSE
         ):
-            self._write_keyword()
             self.tokenizer.advance()
             if self.tokenizer.symbol() != "{":
                 raise Exception(f"Unexpected symbol {self.tokenizer.symbol()}")
-            self._write_symbol()
 
             self.tokenizer.advance()
             self.compile_statements()
 
             if self.tokenizer.symbol() != "}":
                 raise Exception(f"Unexpected symbol {self.tokenizer.symbol()}")
-            self._write_symbol()
             self.tokenizer.advance()
-
-        self._write(f"</ifStatement>")
+        self.writer.write_label(end_label)
 
     def compile_while(self):
-        self._write(f"<whileStatement>")
+        # 'while' '(' expression ')' '{' statements '}'
         if self.tokenizer.keyword() != TokenKeyword.WHILE:
             raise Exception(f"Unexpected token {self.tokenizer.keyword()}")
-        self._write_keyword()
 
         self.tokenizer.advance()
         if self.tokenizer.symbol() != "(":
             raise Exception(f"Unexpected symbol {self.tokenizer.symbol()}")
-        self._write_symbol()
 
         self.tokenizer.advance()
+        start_label = f'L{self.label_count}'
+        end_label = f'L{self.label_count + 1}'
+        self.label_count += 2
+        self.writer.write_label(start_label)
         self.compile_expression()
+        self.writer.write_arithmetic(VMArithmetic.NOT)
+        self.writer.write_if(end_label)
 
         if self.tokenizer.symbol() != ")":
-            raise Exception(f"Unexpected symbol {self.tokenizer.symbol()}")
-        self._write_symbol()
+            raise Exception
 
         self.tokenizer.advance()
         if self.tokenizer.symbol() != "{":
-            raise Exception(f"Unexpected symbol {self.tokenizer.symbol()}")
-        self._write_symbol()
+            raise Exception
 
         self.tokenizer.advance()
         self.compile_statements()
+        self.writer.write_goto(start_label)
 
         if self.tokenizer.symbol() != "}":
-            raise Exception(f"Unexpected symbol {self.tokenizer.symbol()}")
-        self._write_symbol()
+            raise Exception
 
-        self._write(f"</whileStatement>")
+        self.writer.write_label(end_label)
         self.tokenizer.advance()
 
     def compile_do(self):
@@ -713,7 +714,9 @@ class CompilationEngine:
             string_const = self.tokenizer.string_val()
             self.writer.write_push(VMSegment.CONST, index=len(string_const))
             self.writer.write_call(name='String.new', n_args=1)
-            self._write(f'<stringConstant> {self.tokenizer.string_val()} </stringConstant>')
+            for char in string_const:
+                self.writer.write_push(VMSegment.CONST, index=int(char))
+                self.writer.write_call(name='String.appendChar', n_args=2)
             self.tokenizer.advance()
         elif token_type == TokenType.KEYWORD and self.tokenizer.keyword() in (TokenKeyword.TRUE, TokenKeyword.FALSE, TokenKeyword.NULL, TokenKeyword.THIS):
             self._write_keyword()
