@@ -719,7 +719,16 @@ class CompilationEngine:
                 self.writer.write_call(name='String.appendChar', n_args=2)
             self.tokenizer.advance()
         elif token_type == TokenType.KEYWORD and self.tokenizer.keyword() in (TokenKeyword.TRUE, TokenKeyword.FALSE, TokenKeyword.NULL, TokenKeyword.THIS):
-            self._write_keyword()
+            if self.tokenizer.keyword() == TokenKeyword.TRUE:
+                self.writer.write_push(VMSegment.CONST, index=1)
+                self.writer.write_arithmetic(VMArithmetic.NEG)
+            elif self.tokenizer.keyword() == TokenKeyword.FALSE:
+                self.writer.write_push(VMSegment.CONST, index=0)
+            elif self.tokenizer.keyword() == TokenKeyword.NULL:
+                self.writer.write_push(VMSegment.CONST, index=0)
+            elif self.tokenizer.keyword() == TokenKeyword.THIS:
+                pass
+
             self.tokenizer.advance()
         elif token_type == TokenType.SYMBOL and self.tokenizer.symbol() == '(':
             self._write_symbol()
