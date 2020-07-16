@@ -250,8 +250,6 @@ class CompilationEngine:
         # 'class' className '{' classVarDec* subroutineDec* '}'
         if self.tokenizer.keyword() != TokenKeyword.CLASS:
             raise Exception(f"Unexpected token {self.tokenizer.keyword()}")
-        self._write_keyword()
-
         self.tokenizer.advance()
         self.class_name = self.tokenizer.identifier()
 
@@ -275,8 +273,6 @@ class CompilationEngine:
 
         if self.tokenizer.symbol() != "}":
             raise Exception(f"Unexpected symbol {self.tokenizer.symbol()}")
-
-        self._write(f"</class>")
 
     def compile_class_var_dec(self):
         # ('static'|'field') type varName (',' varName)*';'
@@ -305,7 +301,7 @@ class CompilationEngine:
         var_name = self.tokenizer.identifier()
         self.class_table.define(var_name=var_name, 
                                 var_type=var_type, 
-                                var_kind=self.tokenizer.keyword())
+                                var_kind=var_kind)
 
         self.tokenizer.advance()
         while (
@@ -334,14 +330,10 @@ class CompilationEngine:
             TokenKeyword.METHOD,
         ):
             raise Exception(f"Unexpected token {self.tokenizer.keyword()}")
-        is_method = self.tokenizer.keyword() in (
-            TokenKeyword.METHOD, TokenKeyword.CONSTRUCTOR
-        )
-        if is_method:
-            self.subroutine_table.define('this', self.class_name, var_kind=VarKind.ARG)
+        self.method_type = self.tokenizer.keyword()
         self.tokenizer.advance()
         if self.tokenizer.token_type() == TokenType.IDENTIFIER:
-            return_type = self.tokenizer.identifier()
+            self.return_type = self.tokenizer.identifier()
         elif self.tokenizer.token_type() == TokenType.KEYWORD:
             if self.tokenizer.keyword() not in (
                 TokenKeyword.VOID,
@@ -349,9 +341,11 @@ class CompilationEngine:
                 TokenKeyword.CHAR,
                 TokenKeyword.BOOLEAN,
             ):
-                raise Exception(f"Unexpected keyword {self.tokenizer.keyword()}")
+                raise Exception
+            else:
+                self.return_type = self.tokenizer.keyword()
         else:
-            raise Exception(f"Unexpected token type {self.tokenizer.token_type()}")
+            raise Exception
 
         self.tokenizer.advance()
         self.method_name = self.tokenizer.identifier()
@@ -430,9 +424,17 @@ class CompilationEngine:
         ):
             self.compile_var_dec()
 
-        n_locals = self.subroutine_table.var_count(VarKind.VAR)
+        n_locals = self.subroutine_table.var_count(VarKind.LOCAL)
         self.writer.write_function(name=f'{self.class_name}.{self.method_name}', 
                                    n_locals=n_locals)
+        if self.method_type == TokenKeyword.METHOD:
+            self.writer.write_push(segment=VMSegment.ARG, index=0)
+            self.writer.write_pop(segment=VMSegment.POINTER, index=0)
+        elif self.method_type == TokenKeyword.CONSTRUCTOR:
+            self.writer.write_push(segment=VMSegment.CONST, index=n_locals)
+            self.writer.write_call(name='Memory.Alloc', n_args=1)
+            self.writer.write_pop(segment=VMSegment.POINTER, index=0)
+
         self.compile_statements()
         if self.tokenizer.symbol() != "}":
             raise Exception
@@ -465,7 +467,7 @@ class CompilationEngine:
         var_name = self.tokenizer.identifier()
         self.subroutine_table.define(var_name=var_name,
                                      var_type=var_type, 
-                                     var_kind=VarKind.VAR)
+                                     var_kind=VarKind.LOCAL)
 
         self.tokenizer.advance()
         while (
@@ -476,7 +478,7 @@ class CompilationEngine:
             var_name = self.tokenizer.identifier()
             self.subroutine_table.define(var_name=var_name,
                                         var_type=var_type, 
-                                        var_kind=VarKind.VAR)
+                                        var_kind=VarKind.LOCAL)
             self.tokenizer.advance()
 
         if self.tokenizer.symbol() != ";":
@@ -484,7 +486,6 @@ class CompilationEngine:
         self.tokenizer.advance()
 
     def compile_statements(self):
-        self._write(f"<statements>")
         while self.tokenizer.token_type() == TokenType.KEYWORD:
             keyword = self.tokenizer.keyword()
             if keyword == TokenKeyword.IF:
@@ -499,7 +500,6 @@ class CompilationEngine:
                 self.compile_return()
             else:
                 break
-        self._write(f"</statements>")
 
     def compile_let(self):
         # 'let' varName ('['expression']')?'='expression';'
@@ -509,21 +509,19 @@ class CompilationEngine:
         self.tokenizer.advance()
         var_name = self.tokenizer.identifier()
 
-        var_type = self.subroutine_table.type_of(var_name)
-        vm_index = self.subroutine_table.index_of(var_name)
+        # look at the subroutine table first
         var_kind = self.subroutine_table.kind_of(var_name)
-        if var_kind == VarKind.VAR:
-            vm_segment =  VMSegment.LOCAL
-        elif var_kind == VarKind.STATIC:
-            vm_segment = VMSegment.STATIC
-        elif var_kind == VarKind.ARG:
-            vm_segment = VMSegment.THIS
-        elif var_kind == VarKind.FIELD:
-            vm_segment = VMSegment.THIS
+        if var_kind == VarKind.NONE:
+            # if it's not there, it's probably in the class table
+            var_kind = self.class_table.kind_of(var_name)
+            vm_index = self.class_table.index_of(var_name)
         else:
+            vm_index = self.subroutine_table.index_of(var_name)
+        if var_kind == VarKind.NONE:
+            # if this is the case, then it is in neither tables
             raise Exception
         
-        self.writer.write_push(vm_segment=vm_segment,
+        self.writer.write_push(segment=var_kind,
                                index=vm_index)
         self.tokenizer.advance()
         if self.tokenizer.symbol() == "[":
@@ -547,8 +545,8 @@ class CompilationEngine:
         if self.tokenizer.symbol() != ";":
             raise Exception(f"Unexpected token {self.tokenizer.symbol()}")
         
-        VMWriter.write_pop(segment=vm_segment,
-                           index=vm_index)
+        self.writer.write_pop(segment=vm_segment,
+                              index=vm_index)
         self.tokenizer.advance()
 
     def compile_if(self):
@@ -813,8 +811,8 @@ class CompilationEngine:
 class VarKind:
     STATIC = 'static'
     FIELD = 'field'
-    ARG = 'arg'
-    VAR = 'var'
+    ARG = 'argument'
+    LOCAL = 'local'
     NONE = 'none'
 
 
