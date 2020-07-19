@@ -426,6 +426,7 @@ class CompilationEngine:
             self.compile_var_dec()
 
         n_locals = self.subroutine_table.var_count(VarKind.LOCAL)
+        n_fields = self.class_table.var_count(VarKind.FIELD)
         self.writer.write_function(
             name=f"{self.class_name}.{self.method_name}", n_locals=n_locals
         )
@@ -434,9 +435,9 @@ class CompilationEngine:
             self.writer.write_push(segment=VMSegment.ARG, index=0)
             self.writer.write_pop(segment=VMSegment.POINTER, index=0)
         elif self.method_type == TokenKeyword.CONSTRUCTOR:
-            # allocate memory for local variables
-            self.writer.write_push(segment=VMSegment.CONST, index=n_locals)
-            self.writer.write_call(name="Memory.Alloc", n_args=1)
+            # allocate memory for field variables
+            self.writer.write_push(segment=VMSegment.CONST, index=n_fields)
+            self.writer.write_call(name="Memory.alloc", n_args=1)
             self.writer.write_pop(segment=VMSegment.POINTER, index=0)
 
         self.compile_statements()
@@ -710,9 +711,7 @@ class CompilationEngine:
             self.writer.write_return()
             self.tokenizer.advance()
             return
-
-        if self.tokenizer.symbol() != ";":
-            raise Exception
+        
         self.compile_expression()
         self.writer.write_return()
         self.tokenizer.advance()
