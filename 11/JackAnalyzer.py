@@ -265,7 +265,6 @@ class CompilationEngine:
             TokenKeyword.FIELD,
         ):
             self.compile_class_var_dec()
-
         while self.tokenizer.token_type() == TokenType.KEYWORD and self.tokenizer.keyword() in (
             TokenKeyword.CONSTRUCTOR,
             TokenKeyword.FUNCTION,
@@ -365,6 +364,11 @@ class CompilationEngine:
     def compile_parameter_list(self):
         # ((type varName) (',' type varName))
         # handle type
+        if self.method_type == TokenKeyword.METHOD:
+            self.subroutine_table.define(
+                var_name="this", var_type=self.class_name, var_kind=VarKind.ARG
+            )
+
         if self.tokenizer.token_type() == TokenType.KEYWORD:
             if self.tokenizer.keyword() in (
                 TokenKeyword.INT,
@@ -712,7 +716,7 @@ class CompilationEngine:
             self.writer.write_return()
             self.tokenizer.advance()
             return
-        
+
         self.compile_expression()
         self.writer.write_return()
         self.tokenizer.advance()
