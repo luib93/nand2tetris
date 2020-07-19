@@ -246,17 +246,18 @@ class CompilationEngine:
         self.class_name = None
         self.method_name = None
         self.label_count = 0
+        self.expression_counts = []
 
     def compile_class(self):
         # 'class' className '{' classVarDec* subroutineDec* '}'
         if self.tokenizer.keyword() != TokenKeyword.CLASS:
-            raise Exception(f"Unexpected token {self.tokenizer.keyword()}")
+            raise Exception
         self.tokenizer.advance()
         self.class_name = self.tokenizer.identifier()
 
         self.tokenizer.advance()
         if self.tokenizer.symbol() != "{":
-            raise Exception(f"Unexpected symbol {self.tokenizer.symbol()}")
+            raise Exception
 
         self.tokenizer.advance()
         while self.tokenizer.token_type() == TokenType.KEYWORD and self.tokenizer.keyword() in (
@@ -273,7 +274,8 @@ class CompilationEngine:
             self.compile_subroutine_dec()
 
         if self.tokenizer.symbol() != "}":
-            raise Exception(f"Unexpected symbol {self.tokenizer.symbol()}")
+            raise Exception
+        self.writer.close()
 
     def compile_class_var_dec(self):
         # ('static'|'field') type varName (',' varName)*';'
@@ -292,17 +294,15 @@ class CompilationEngine:
             ):
                 var_type = self.tokenizer.keyword()
             else:
-                raise Exception(f"Unexpected keyword {self.tokenizer.keyword()}")
+                raise Exception
         elif self.tokenizer.token_type() == TokenType.IDENTIFIER:
             var_type = self.tokenizer.identifier()
         else:
-            raise Exception(f"Unexpected token type {self.tokenizer.token_type()}")
+            raise Exception
 
         self.tokenizer.advance()
         var_name = self.tokenizer.identifier()
-        self.class_table.define(var_name=var_name, 
-                                var_type=var_type, 
-                                var_kind=var_kind)
+        self.class_table.define(var_name=var_name, var_type=var_type, var_kind=var_kind)
 
         self.tokenizer.advance()
         while (
@@ -311,18 +311,18 @@ class CompilationEngine:
         ):
             self.tokenizer.advance()
             var_name = self.tokenizer.identifier()
-            self.class_table.define(var_name=var_name, 
-                                    var_type=var_type, 
-                                    var_kind=self.tokenizer.keyword())
+            self.class_table.define(
+                var_name=var_name, var_type=var_type, var_kind=var_kind
+            )
             self.tokenizer.advance()
 
         if self.tokenizer.symbol() != ";":
-            raise Exception(f"Unexpected symbol {self.tokenizer.symbol()}")
+            raise Exception
 
         self.tokenizer.advance()
 
     def compile_subroutine_dec(self):
-        # ('constructor'|'function'|'method') ('void'|type) 
+        # ('constructor'|'function'|'method') ('void'|type)
         # subroutineName '('parameterList')' subroutineBody
         self.subroutine_table.start_subroutine()
         if self.tokenizer.keyword() not in (
@@ -330,7 +330,7 @@ class CompilationEngine:
             TokenKeyword.FUNCTION,
             TokenKeyword.METHOD,
         ):
-            raise Exception(f"Unexpected token {self.tokenizer.keyword()}")
+            raise Exception
         self.method_type = self.tokenizer.keyword()
         self.tokenizer.advance()
         if self.tokenizer.token_type() == TokenType.IDENTIFIER:
@@ -381,9 +381,9 @@ class CompilationEngine:
 
         self.tokenizer.advance()
         var_name = self.tokenizer.identifier()
-        self.subroutine_table.define(var_name=var_name,
-                                     var_type=var_type,
-                                     var_kind=VarKind.ARG)
+        self.subroutine_table.define(
+            var_name=var_name, var_type=var_type, var_kind=VarKind.ARG
+        )
 
         self.tokenizer.advance()
         while (
@@ -408,9 +408,9 @@ class CompilationEngine:
 
             self.tokenizer.advance()
             var_name = self.tokenizer.identifier()
-            self.subroutine_table.define(var_name=var_name,
-                                        var_type=var_type,
-                                        var_kind=VarKind.ARG)
+            self.subroutine_table.define(
+                var_name=var_name, var_type=var_type, var_kind=VarKind.ARG
+            )
             self.tokenizer.advance()
 
     def compile_subroutine_body(self):
@@ -426,14 +426,17 @@ class CompilationEngine:
             self.compile_var_dec()
 
         n_locals = self.subroutine_table.var_count(VarKind.LOCAL)
-        self.writer.write_function(name=f'{self.class_name}.{self.method_name}', 
-                                   n_locals=n_locals)
+        self.writer.write_function(
+            name=f"{self.class_name}.{self.method_name}", n_locals=n_locals
+        )
         if self.method_type == TokenKeyword.METHOD:
+            # set THIS to the first argument
             self.writer.write_push(segment=VMSegment.ARG, index=0)
             self.writer.write_pop(segment=VMSegment.POINTER, index=0)
         elif self.method_type == TokenKeyword.CONSTRUCTOR:
+            # allocate memory for local variables
             self.writer.write_push(segment=VMSegment.CONST, index=n_locals)
-            self.writer.write_call(name='Memory.Alloc', n_args=1)
+            self.writer.write_call(name="Memory.Alloc", n_args=1)
             self.writer.write_pop(segment=VMSegment.POINTER, index=0)
 
         self.compile_statements()
@@ -460,15 +463,15 @@ class CompilationEngine:
             else:
                 raise Exception
         elif self.tokenizer.token_type() == TokenType.IDENTIFIER:
-                var_type = self.tokenizer.identifier()
+            var_type = self.tokenizer.identifier()
         else:
             raise Exception
 
         self.tokenizer.advance()
         var_name = self.tokenizer.identifier()
-        self.subroutine_table.define(var_name=var_name,
-                                     var_type=var_type, 
-                                     var_kind=VarKind.LOCAL)
+        self.subroutine_table.define(
+            var_name=var_name, var_type=var_type, var_kind=VarKind.LOCAL
+        )
 
         self.tokenizer.advance()
         while (
@@ -477,9 +480,9 @@ class CompilationEngine:
         ):
             self.tokenizer.advance()
             var_name = self.tokenizer.identifier()
-            self.subroutine_table.define(var_name=var_name,
-                                        var_type=var_type, 
-                                        var_kind=VarKind.LOCAL)
+            self.subroutine_table.define(
+                var_name=var_name, var_type=var_type, var_kind=VarKind.LOCAL
+            )
             self.tokenizer.advance()
 
         if self.tokenizer.symbol() != ";":
@@ -512,74 +515,80 @@ class CompilationEngine:
 
         # look at the subroutine table first
         var_kind = self.subroutine_table.kind_of(var_name)
+        vm_index = self.subroutine_table.index_of(var_name)
         if var_kind == VarKind.NONE:
             # if it's not there, it's probably in the class table
             var_kind = self.class_table.kind_of(var_name)
             vm_index = self.class_table.index_of(var_name)
-        else:
-            vm_index = self.subroutine_table.index_of(var_name)
         if var_kind == VarKind.NONE:
             # if this is the case, then it is in neither tables
             raise Exception
-        
-        self.writer.write_push(segment=var_kind,
-                               index=vm_index)
+        segment = VM_SEGMENT_BY_VAR_KIND[var_kind]
         self.tokenizer.advance()
         if self.tokenizer.symbol() == "[":
+            # this is an array assignment
+            self.writer.write_push(segment=segment, index=vm_index)
             self.tokenizer.advance()
             self.compile_expression()
             self.writer.write_arithmetic(VMArithmetic.ADD)
             # offset array by stack val
             if self.tokenizer.symbol() != "]":
-                raise Exception(f"Unexpected token {self.tokenizer.token_type()}")
+                raise Exception
             self.tokenizer.advance()
-        if self.tokenizer.symbol() != "=":
-            raise Exception(f"Unexpected symbol {self.tokenizer.symbol()}")
 
-        self.tokenizer.advance()
-        self.compile_expression()
-        self.writer.write_pop(VMSegment.TEMP, 0)
-        self.writer.write_pop(VMSegment.POINTER, 1)
-        self.writer.write_push(VMSegment.TEMP, 0)
-        self.writer.write_pop(VMSegment.THAT, 0)
+            if self.tokenizer.symbol() != "=":
+                raise Exception
+
+            self.tokenizer.advance()
+            self.compile_expression()
+            self.writer.write_pop(segment=VMSegment.TEMP, index=0)
+            self.writer.write_pop(segment=VMSegment.POINTER, index=1)
+            self.writer.write_push(segment=VMSegment.TEMP, index=0)
+            self.writer.write_pop(segment=VMSegment.THAT, index=0)
+        else:
+            # this is a non-array assignment
+            if self.tokenizer.symbol() != "=":
+                raise Exception
+
+            self.tokenizer.advance()
+            self.compile_expression()
+            segment = VM_SEGMENT_BY_VAR_KIND[var_kind]
+            self.writer.write_pop(segment=segment, index=vm_index)
 
         if self.tokenizer.symbol() != ";":
-            raise Exception(f"Unexpected token {self.tokenizer.symbol()}")
-        
-        self.writer.write_pop(segment=var_kind,
-                              index=vm_index)
+            raise Exception
         self.tokenizer.advance()
 
     def compile_if(self):
         # 'if' '('expression')' '{'statements'}'('else''{'statements'}')?
         if self.tokenizer.keyword() != TokenKeyword.IF:
-            raise Exception(f"Unexpected token {self.tokenizer.keyword()}")
+            raise Exception
 
         self.tokenizer.advance()
         if self.tokenizer.symbol() != "(":
-            raise Exception(f"Unexpected symbol {self.tokenizer.symbol()}")
+            raise Exception
 
         self.tokenizer.advance()
         self.compile_expression()
         self.writer.write_arithmetic(VMArithmetic.NOT)
-        else_label = f'L{self.label_count}'
-        end_label = f'L{self.label_count + 1}'
+        else_label = f"L{self.label_count}"
+        end_label = f"L{self.label_count + 1}"
         self.label_count += 2
         self.writer.write_if(else_label)
 
         if self.tokenizer.symbol() != ")":
-            raise Exception(f"Unexpected symbol {self.tokenizer.symbol()}")
+            raise Exception
 
         self.tokenizer.advance()
         if self.tokenizer.symbol() != "{":
-            raise Exception(f"Unexpected symbol {self.tokenizer.symbol()}")
+            raise Exception
 
         self.tokenizer.advance()
         self.compile_statements()
         self.writer.write_goto(end_label)
 
         if self.tokenizer.symbol() != "}":
-            raise Exception(f"Unexpected symbol {self.tokenizer.symbol()}")
+            raise Exception
 
         self.tokenizer.advance()
         self.writer.write_label(else_label)
@@ -589,28 +598,27 @@ class CompilationEngine:
         ):
             self.tokenizer.advance()
             if self.tokenizer.symbol() != "{":
-                raise Exception(f"Unexpected symbol {self.tokenizer.symbol()}")
-
+                raise Exception
             self.tokenizer.advance()
             self.compile_statements()
 
             if self.tokenizer.symbol() != "}":
-                raise Exception(f"Unexpected symbol {self.tokenizer.symbol()}")
+                raise Exception
             self.tokenizer.advance()
         self.writer.write_label(end_label)
 
     def compile_while(self):
         # 'while' '(' expression ')' '{' statements '}'
         if self.tokenizer.keyword() != TokenKeyword.WHILE:
-            raise Exception(f"Unexpected token {self.tokenizer.keyword()}")
+            raise Exception
 
         self.tokenizer.advance()
         if self.tokenizer.symbol() != "(":
-            raise Exception(f"Unexpected symbol {self.tokenizer.symbol()}")
+            raise Exception
 
         self.tokenizer.advance()
-        start_label = f'L{self.label_count}'
-        end_label = f'L{self.label_count + 1}'
+        start_label = f"L{self.label_count}"
+        end_label = f"L{self.label_count + 1}"
         self.label_count += 2
         self.writer.write_label(start_label)
         self.compile_expression()
@@ -635,207 +643,308 @@ class CompilationEngine:
         self.tokenizer.advance()
 
     def compile_do(self):
-        self._write(f"<doStatement>")
+        # 'do' subroutineCall';'
         if self.tokenizer.keyword() != TokenKeyword.DO:
-            raise Exception(f"Unexpected token {self.tokenizer.keyword()}")
-        self._write_keyword()
+            raise Exception
 
-        # handle subroutine call
+        # handle subroutine call: subroutineName'('expressionList')' | (className|varName)'.'subroutineName'('expressionList')'
         self.tokenizer.advance()
-        self._write_identifier()
+        first_identifier = self.tokenizer.identifier()
 
         self.tokenizer.advance()
         if self.tokenizer.symbol() == ".":
-            self._write_symbol()
+            # (className|varName)'.'subroutineName'('expressionList')'
+            self.tokenizer.advance()
+            object_kind = self.subroutine_table.kind_of(first_identifier)
+            object_index = self.subroutine_table.index_of(first_identifier)
+            object_type = self.subroutine_table.type_of(first_identifier)
+            if object_kind == VarKind.NONE:
+                # lookup in the class table
+                object_kind = self.class_table.kind_of(first_identifier)
+                object_index = self.class_table.index_of(first_identifier)
+                object_type = self.class_table.type_of(first_identifier)
 
+            is_variable = object_kind != VarKind.NONE
+            # if this is a method, we need to push the object as the first arg
+            # otherwise, it is a function or static subroutine
+            if is_variable:
+                segment = VM_SEGMENT_BY_VAR_KIND[object_kind]
+                self.writer.write_push(segment=segment, index=object_index)
+                subroutine_name = f"{object_type}.{self.tokenizer.identifier()}"
+            else:
+                subroutine_name = f"{first_identifier}.{self.tokenizer.identifier()}"
             self.tokenizer.advance()
-            self._write_identifier()
-            self.tokenizer.advance()
+        else:
+            # subroutineName'('expressionList')'
+            is_variable = False
+            subroutine_name = f"{self.class_name}.{first_identifier}"
 
         if self.tokenizer.symbol() != "(":
-            raise Exception(f"Unexpected symbol {self.tokenizer.symbol()}")
-        self._write_symbol()
+            raise Exception
 
         self.tokenizer.advance()
         self.compile_expression_list()
 
         if self.tokenizer.symbol() != ")":
-            raise Exception(f"Unexpected symbol {self.tokenizer.symbol()}")
-        self._write_symbol()
-
+            raise Exception
+        n_args = self.expression_counts.pop()
+        if is_variable:
+            n_args += 1
+        self.writer.write_call(name=subroutine_name, n_args=n_args)
         self.tokenizer.advance()
         if self.tokenizer.symbol() != ";":
-            raise Exception(f"Unexpected symbol {self.tokenizer.symbol()}")
-        self._write_symbol()
-
-        self._write(f"</doStatement>")
+            raise Exception
+        self.writer.write_pop(segment=VMSegment.TEMP, index=0)
         self.tokenizer.advance()
 
     def compile_return(self):
-        self._write(f"<returnStatement>")
         if self.tokenizer.keyword() != TokenKeyword.RETURN:
-            raise Exception(f"Unexpected token {self.tokenizer.keyword()}")
-        self._write_keyword()
+            raise Exception
 
         self.tokenizer.advance()
         if (
             self.tokenizer.token_type() == TokenType.SYMBOL
             and self.tokenizer.symbol() == ";"
         ):
-            self._write_symbol()
-            self._write(f"</returnStatement>")
+            self.writer.write_push(segment=VMSegment.CONST, index=0)
+            self.writer.write_return()
             self.tokenizer.advance()
             return
 
-        self.compile_expression()
         if self.tokenizer.symbol() != ";":
-            raise Exception(f"Unexpected symbol {self.tokenizer.symbol()}")
-        self._write_symbol()
-
-        self._write(f"</returnStatement>")
+            raise Exception
+        self.compile_expression()
+        self.writer.write_return()
         self.tokenizer.advance()
 
     def compile_expression(self):
         # term (op term)*
         self.compile_term()
-        while self.tokenizer.token_type() == TokenType.SYMBOL and self.tokenizer.symbol() in ('+', '-', '*', '/', '&', '|', '<', '>', '='):
-            op = self.tokenizer.symbol()        
+        while self.tokenizer.token_type() == TokenType.SYMBOL and self.tokenizer.symbol() in (
+            "+",
+            "-",
+            "*",
+            "/",
+            "&",
+            "|",
+            "<",
+            ">",
+            "=",
+        ):
+            op = self.tokenizer.symbol()
             self.tokenizer.advance()
             self.compile_term()
+            if op == "+":
+                self.writer.write_arithmetic(VMArithmetic.ADD)
+            elif op == "-":
+                self.writer.write_arithmetic(VMArithmetic.SUB)
+            elif op == "*":
+                self.writer.write_call("Math.multiply", 2)
+            elif op == "/":
+                self.writer.write_call("Math.divide", 2)
+            elif op == "&":
+                self.writer.write_arithmetic(VMArithmetic.AND)
+            elif op == "|":
+                self.writer.write_arithmetic(VMArithmetic.OR)
+            elif op == "<":
+                self.writer.write_arithmetic(VMArithmetic.LT)
+            elif op == ">":
+                self.writer.write_arithmetic(VMArithmetic.GT)
+            elif op == "=":
+                self.writer.write_arithmetic(VMArithmetic.EQ)
 
     def compile_term(self):
-        # integerConstant | stringConstant | keywordConstant | varName | 
+        # integerConstant | stringConstant | keywordConstant | varName |
         # varName '['expression']' | subroutineCall | '('expression')' | unaryOp term
         token_type = self.tokenizer.token_type()
         if token_type == TokenType.INT_CONST:
             # integerConstant
-            self.writer.write_push(segment=VMSegment.CONST, index=self.tokenizer.int_val())
+            self.writer.write_push(
+                segment=VMSegment.CONST, index=self.tokenizer.int_val()
+            )
             self.tokenizer.advance()
         elif token_type == TokenType.STRING_CONST:
             # stringConstant
             string_const = self.tokenizer.string_val()
-            self.writer.write_push(VMSegment.CONST, index=len(string_const))
-            self.writer.write_call(name='String.new', n_args=1)
+            self.writer.write_push(segment=VMSegment.CONST, index=len(string_const))
+            self.writer.write_call(name="String.new", n_args=1)
             for char in string_const:
-                self.writer.write_push(VMSegment.CONST, index=int(char))
-                self.writer.write_call(name='String.appendChar', n_args=2)
+                self.writer.write_push(segment=VMSegment.CONST, index=ord(char))
+                self.writer.write_call(name="String.appendChar", n_args=2)
             self.tokenizer.advance()
-        elif token_type == TokenType.KEYWORD and self.tokenizer.keyword() in (TokenKeyword.TRUE, TokenKeyword.FALSE, TokenKeyword.NULL, TokenKeyword.THIS):
+        elif token_type == TokenType.KEYWORD and self.tokenizer.keyword() in (
+            TokenKeyword.TRUE,
+            TokenKeyword.FALSE,
+            TokenKeyword.NULL,
+            TokenKeyword.THIS,
+        ):
             # keywordConstant
             if self.tokenizer.keyword() == TokenKeyword.TRUE:
-                self.writer.write_push(VMSegment.CONST, index=1)
+                self.writer.write_push(segment=VMSegment.CONST, index=1)
                 self.writer.write_arithmetic(VMArithmetic.NEG)
             elif self.tokenizer.keyword() == TokenKeyword.FALSE:
-                self.writer.write_push(VMSegment.CONST, index=0)
+                self.writer.write_push(segment=VMSegment.CONST, index=0)
             elif self.tokenizer.keyword() == TokenKeyword.NULL:
-                self.writer.write_push(VMSegment.CONST, index=0)
+                self.writer.write_push(segment=VMSegment.CONST, index=0)
             elif self.tokenizer.keyword() == TokenKeyword.THIS:
-                self.writer.write_push(VMSegment.POINTER, index=0)
+                self.writer.write_push(segment=VMSegment.POINTER, index=0)
 
             self.tokenizer.advance()
-        elif token_type == TokenType.SYMBOL and self.tokenizer.symbol() == '(':
+        elif token_type == TokenType.SYMBOL and self.tokenizer.symbol() == "(":
             # '(' expression ')'
             self.tokenizer.advance()
             self.compile_expression()
-            if self.tokenizer.symbol() != ')':
+            if self.tokenizer.symbol() != ")":
                 raise Exception
             self.tokenizer.advance()
-        elif token_type == TokenType.SYMBOL and self.tokenizer.symbol() in ('-', '~'):
+        elif token_type == TokenType.SYMBOL and self.tokenizer.symbol() in ("-", "~"):
             # unaryOp term
             op = self.tokenizer.symbol()
             self.tokenizer.advance()
             self.compile_term()
-            if op == '-':
+            if op == "-":
                 self.writer.write_arithmetic(VMArithmetic.NEG)
             else:
-             self.writer.write_arithmetic(VMArithmetic.NOT)
-        elif token_type  == TokenType.IDENTIFIER:
+                self.writer.write_arithmetic(VMArithmetic.NOT)
+        elif token_type == TokenType.IDENTIFIER:
             # varName | varName'['expression']'| subroutineCall
             first_identifier = self.tokenizer.identifier()
             self.tokenizer.advance()
 
-            if self.tokenizer.token_type() == TokenType.SYMBOL and self.tokenizer.symbol() == '[':
+            if (
+                self.tokenizer.token_type() == TokenType.SYMBOL
+                and self.tokenizer.symbol() == "["
+            ):
                 # varName '['expression']'
                 var_kind = self.subroutine_table.kind_of(first_identifier)
+                var_index = self.subroutine_table.index_of(first_identifier)
                 if var_kind == VarKind.NONE:
                     # look at class table
                     var_kind = self.class_table.kind_of(first_identifier)
+                    var_index = self.class_table.index_of(first_identifier)
                 # if we don't find it in either, then throw
-                if var_kind == VarKind.None:
+                if var_kind == VarKind.NONE:
                     raise Exception
-                var_index = self.subroutine_table.index_of(first_identifier)
-                self.writer.write_push(segment=var_kind,
-                                       index=var_index)
+                segment = VM_SEGMENT_BY_VAR_KIND[var_kind]
+                self.writer.write_push(segment=segment, index=var_index)
                 self.tokenizer.advance()
                 self.compile_expression()
+                if self.tokenizer.symbol() != "]":
+                    raise Exception
                 self.writer.write_arithmetic(VMArithmetic.ADD)
                 self.writer.write_pop(segment=VMSegment.POINTER, index=1)
                 self.writer.write_push(segment=VMSegment.THAT, index=0)
-                if self.tokenizer.symbol() != ']':
-                    raise Exception
                 self.tokenizer.advance()
-            elif self.tokenizer.token_type() == TokenType.SYMBOL and self.tokenizer.symbol() == '(':
+            elif (
+                self.tokenizer.token_type() == TokenType.SYMBOL
+                and self.tokenizer.symbol() == "("
+            ):
                 # handle subroutine call: subroutineName'('expressionList')'
                 self.tokenizer.advance()
                 self.compile_expression_list()
-                if self.tokenizer.symbol() != ')':
+                if self.tokenizer.symbol() != ")":
                     raise Exception
-                self.writer.write_call(name=first_identifier, n_args=self.expression_count)
-                self.tokenizer.advance()
-            elif self.tokenizer.token_type() == TokenType.SYMBOL and self.tokenizer.symbol() == '.':
-            # handle subroutine call: (className|varName)'.'subroutineName'('expressionList')'
-                self._write(
-                    f"<identifier> {first_identifier} </identifier>"
+                expression_count = self.expression_counts.pop()
+                self.writer.write_call(
+                    name=f"{self.class_name}.{first_identifier}",
+                    n_args=expression_count,
                 )
-                self._write_symbol()
                 self.tokenizer.advance()
-                self._write_identifier()
+            elif (
+                self.tokenizer.token_type() == TokenType.SYMBOL
+                and self.tokenizer.symbol() == "."
+            ):
+                # handle subroutine call: (className|varName)'.'subroutineName'('expressionList')'
+                var_kind = self.subroutine_table.kind_of(first_identifier)
+                var_index = self.subroutine_table.index_of(first_identifier)
+                var_type = self.subroutine_table.type_of(first_identifier)
+                if var_kind == VarKind.NONE:
+                    # lookup in the class table
+                    var_kind = self.class_table.kind_of(first_identifier)
+                    var_index = self.class_table.index_of(first_identifier)
+                    var_type = self.class_table.type_of(first_identifier)
+                is_variable = var_kind != VarKind.NONE
+                # skip the '.'
                 self.tokenizer.advance()
-                if self.tokenizer.symbol() != '(':
+                # if this is a method, we need to push the object as the first arg
+                # otherwise, it is a function or static subroutine
+                if is_variable:
+                    segment = VM_SEGMENT_BY_VAR_KIND[var_kind]
+                    self.writer.write_push(segment=segment, index=var_index)
+                    subroutine_name = f"{var_type}.{self.tokenizer.identifier()}"
+                else:
+                    subroutine_name = (
+                        f"{first_identifier}.{self.tokenizer.identifier()}"
+                    )
+
+                self.tokenizer.advance()
+                if self.tokenizer.symbol() != "(":
                     raise Exception
-                self._write_symbol()
                 self.tokenizer.advance()
                 self.compile_expression_list()
-                if self.tokenizer.symbol() != ')':
+                if self.tokenizer.symbol() != ")":
                     raise Exception
-                self._write_symbol()
                 self.tokenizer.advance()
+                n_args = self.expression_counts.pop()
+                if is_variable:
+                    n_args += 1
+                self.writer.write_call(name=subroutine_name, n_args=n_args)
             else:
-                self._write(
-                    f"<identifier> {first_identifier} </identifier>"
-                )
+                # varName
+                var_name = first_identifier
+                var_kind = self.subroutine_table.kind_of(var_name)
+                var_index = self.subroutine_table.index_of(var_name)
+                if var_kind == VarKind.NONE:
+                    # lookup in the class table
+                    var_kind = self.class_table.kind_of(var_name)
+                    var_index = self.class_table.index_of(var_name)
+
+                segment = VM_SEGMENT_BY_VAR_KIND[var_kind]
+                self.writer.write_push(segment=segment, index=var_index)
         else:
             raise Exception
 
     def compile_expression_list(self):
-        self.expression_count = 1
         token_type = self.tokenizer.token_type()
+        expression_count = 0
         if token_type == TokenType.INT_CONST:
             self.compile_expression()
         elif token_type == TokenType.STRING_CONST:
             self.compile_expression()
-        elif token_type == TokenType.KEYWORD and self.tokenizer.keyword() in (TokenKeyword.TRUE, TokenKeyword.FALSE, TokenKeyword.NULL, TokenKeyword.THIS):
+        elif token_type == TokenType.KEYWORD and self.tokenizer.keyword() in (
+            TokenKeyword.TRUE,
+            TokenKeyword.FALSE,
+            TokenKeyword.NULL,
+            TokenKeyword.THIS,
+        ):
             self.compile_expression()
-        elif token_type == TokenType.SYMBOL and self.tokenizer.symbol() == '(':
+        elif token_type == TokenType.SYMBOL and self.tokenizer.symbol() == "(":
             self.compile_expression()
-        elif token_type == TokenType.SYMBOL and self.tokenizer.symbol() in ('-', '~'):
+        elif token_type == TokenType.SYMBOL and self.tokenizer.symbol() in ("-", "~"):
             self.compile_expression()
-        elif token_type  == TokenType.IDENTIFIER:
+        elif token_type == TokenType.IDENTIFIER:
             self.compile_expression()
         else:
+            self.expression_counts.append(expression_count)
             return
-        while self.tokenizer.token_type() == TokenType.SYMBOL and self.tokenizer.symbol() == ',':
-            self.expression_count += 1
+
+        expression_count += 1
+        while (
+            self.tokenizer.token_type() == TokenType.SYMBOL
+            and self.tokenizer.symbol() == ","
+        ):
+            expression_count += 1
             self.tokenizer.advance()
             self.compile_expression()
+        self.expression_counts.append(expression_count)
 
 
 class VarKind:
-    STATIC = 'static'
-    FIELD = 'field'
-    ARG = 'argument'
-    LOCAL = 'local'
-    NONE = 'none'
+    STATIC = "static"
+    FIELD = "field"
+    ARG = "arg"
+    LOCAL = "local"
+    NONE = "none"
 
 
 class VarInfo(NamedTuple):
@@ -848,21 +957,20 @@ class VarInfo(NamedTuple):
 class SymbolTable:
     def __init__(self):
         self.start_subroutine()
-    
+
     def start_subroutine(self):
         self.info_by_name: Dict[str, VarInfo] = {}
         self.count_by_kind: DefaultDict[VarKind, int] = defaultdict(int)
-    
+
     def define(self, var_name: str, var_type: str, var_kind: VarKind):
         if var_name in self.info_by_name:
-            raise Exception(f'Variable {var_name} already exists in the SymbolTable')
+            raise Exception(f"Variable {var_name} already exists in the SymbolTable")
         index = self.count_by_kind[var_kind]
-        self.info_by_name[var_name] = VarInfo(var_name=var_name,
-                                              var_type=var_type, 
-                                              var_kind=var_kind,
-                                              index=index)
+        self.info_by_name[var_name] = VarInfo(
+            var_name=var_name, var_type=var_type, var_kind=var_kind, index=index
+        )
         self.count_by_kind[var_kind] += 1
-    
+
     def var_count(self, var_kind: VarKind):
         return self.count_by_kind[var_kind]
 
@@ -870,12 +978,12 @@ class SymbolTable:
         if name not in self.info_by_name:
             return VarKind.NONE
         return self.info_by_name[name].var_kind
-    
+
     def type_of(self, name: str):
         if name not in self.info_by_name:
             return None
         return self.info_by_name[name].var_type
-    
+
     def index_of(self, name: str):
         if name not in self.info_by_name:
             return None
@@ -883,59 +991,67 @@ class SymbolTable:
 
 
 class VMSegment:
-    CONST = 'const'
-    ARG = 'arg'
-    LOCAL = 'local'
-    STATIC = 'static'
-    THIS = 'this'
-    THAT = 'that'
-    POINTER = 'pointer'
-    TEMP = 'temp'
+    CONST = "const"
+    ARG = "arg"
+    LOCAL = "local"
+    STATIC = "static"
+    THIS = "this"
+    THAT = "that"
+    POINTER = "pointer"
+    TEMP = "temp"
+
+
+VM_SEGMENT_BY_VAR_KIND = {
+    VarKind.STATIC: VMSegment.STATIC,
+    VarKind.FIELD: VMSegment.THIS,
+    VarKind.ARG: VMSegment.ARG,
+    VarKind.LOCAL: VMSegment.LOCAL,
+}
 
 
 class VMArithmetic:
-    ADD = 'add'
-    SUB = 'sub'
-    NEG = 'neg'
-    EQ = 'eq'
-    GT = 'gt'
-    LT = 'lt'
-    AND = 'and'
-    OR = 'or'
-    NOT = 'not'
+    ADD = "add"
+    SUB = "sub"
+    NEG = "neg"
+    EQ = "eq"
+    GT = "gt"
+    LT = "lt"
+    AND = "and"
+    OR = "or"
+    NOT = "not"
 
 
 class VMWriter:
     def __init__(self, out_file: TextIO):
         self.out_file = out_file
-    
+
     def write_push(self, segment: VMSegment, index: int):
-        self.out_file.write(f'push {segment} {index}\n')
-    
+        self.out_file.write(f"push {segment} {index}\n")
+
     def write_pop(self, segment: VMSegment, index: int):
-        self.out_file.write(f'pop {segment} {index}\n')
+        self.out_file.write(f"pop {segment} {index}\n")
 
     def write_arithmetic(self, command: VMArithmetic):
-        self.out_file.write(f'{command}\n')
+        self.out_file.write(f"{command}\n")
 
     def write_label(self, label: str):
-        self.out_file.write(f'label {label}\n')
+        self.out_file.write(f"label {label}\n")
 
     def write_goto(self, label: str):
-        self.out_file.write(f'goto {label}\n')
-    
+        self.out_file.write(f"goto {label}\n")
+
     def write_if(self, label: str):
-        self.out_file.write(f'if-goto {label}\n')
-    
+        self.out_file.write(f"if-goto {label}\n")
+
     def write_call(self, name: str, n_args: int):
-        self.out_file.write(f'call {name} {n_args}\n')
-    
+        self.out_file.write(f"call {name} {n_args}\n")
+
     def write_function(self, name: str, n_locals: int):
-        self.out_file.write(f'function {name} {n_locals}\n')
-    
+        self.out_file.write(f"function {name} {n_locals}\n")
+
     def write_return(self):
-        self.out_file.write('return\n')
-    
+        self.out_file.write("return\n")
+
     def close(self):
         self.out_file.close()
 
