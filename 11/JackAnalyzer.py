@@ -677,7 +677,8 @@ class CompilationEngine:
             self.tokenizer.advance()
         else:
             # subroutineName'('expressionList')'
-            is_variable = False
+            self.writer.write_push(segment=VMSegment.POINTER, index=0)
+            is_variable = True
             subroutine_name = f"{self.class_name}.{first_identifier}"
 
         if self.tokenizer.symbol() != "(":
@@ -843,7 +844,8 @@ class CompilationEngine:
                 self.compile_expression_list()
                 if self.tokenizer.symbol() != ")":
                     raise Exception
-                expression_count = self.expression_counts.pop()
+                self.writer.write_push(segment=VMSegment.POINTER, index=0)
+                expression_count = self.expression_counts.pop() + 1
                 self.writer.write_call(
                     name=f"{self.class_name}.{first_identifier}",
                     n_args=expression_count,

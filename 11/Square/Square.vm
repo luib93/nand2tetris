@@ -8,7 +8,8 @@ push argument 1
 pop this 1
 push argument 2
 pop this 2
-call Square.draw 0
+push pointer 0
+call Square.draw 1
 pop temp 0
 push pointer 0
 return
@@ -73,13 +74,15 @@ lt
 and
 not
 if-goto L0
-call Square.erase 0
+push pointer 0
+call Square.erase 1
 pop temp 0
 push this 2
 push constant 2
 add
 pop this 2
-call Square.draw 0
+push pointer 0
+call Square.draw 1
 pop temp 0
 goto L1
 label L0
@@ -94,13 +97,15 @@ push constant 2
 gt
 not
 if-goto L2
-call Square.erase 0
+push pointer 0
+call Square.erase 1
 pop temp 0
 push this 2
 push constant 2
 sub
 pop this 2
-call Square.draw 0
+push pointer 0
+call Square.draw 1
 pop temp 0
 goto L3
 label L2
