@@ -1063,7 +1063,7 @@ if __name__ == "__main__":
             for entry in it:
                 if entry.name.endswith(".jack") and entry.is_file():
                     out_path = os.path.splitext(entry.path)[0]
-                    out_file = out_path + ".my.xml"
+                    out_file = out_path + ".vm"
                     with open(entry.path, "r") as in_file, open(
                         out_file, "w"
                     ) as out_file:
@@ -1072,7 +1072,7 @@ if __name__ == "__main__":
 
     else:
         out_path = os.path.splitext(path)[0]
-        out_file = out_path + ".my.xml"
+        out_file = out_path + ".vm"
         with open(path, "r") as in_file, open(out_file, "w") as out_file:
             tester = CompilationEngine(in_file=in_file, out_file=out_file)
             tester.compile_class()
