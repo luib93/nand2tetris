@@ -991,8 +991,8 @@ class SymbolTable:
 
 
 class VMSegment:
-    CONST = "const"
-    ARG = "arg"
+    CONST = "constant"
+    ARG = "argument"
     LOCAL = "local"
     STATIC = "static"
     THIS = "this"
