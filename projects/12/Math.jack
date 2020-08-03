@@ -41,7 +41,7 @@ class Math {
     }
 
     function boolean bit(int x, int i) {
-        return (twoToThe[i] & x) > 0;
+        return (twoToThe[i] & x) = twoToThe[i];
     }
 
     /** Returns the product of x and y. 
@@ -54,9 +54,9 @@ class Math {
         let sum = 0;
         let shiftedX = x;
         let i = 0;
-        let w = 4;
+        let w = 16;
         while (i < w) {
-            if (true) {
+            if (Math.bit(y, i)) {
                 let sum = sum + shiftedX;
             }
             let shiftedX = shiftedX + shiftedX;
@@ -71,19 +71,21 @@ class Math {
      *  the Jack expressions x/y and divide(x,y) return the same value.
      */
     function int divide(int x, int y) {
-        var int q, multiplier;
+        var int q, a, b, multiplier;
+        let a = Math.abs(x);
+        let b = Math.abs(y);
         let multiplier = 1;
-        if (y > x | y < 0) {
+        if (x < 0 & y > 0) {
+            let multiplier = -1;
+        }
+        if (x > 0 & y < 0) {
+            let multiplier = -1;
+        }
+        if (b > a | b < 0) {
             return 0;
         }
-        if (y < 0 & x > 0) {
-            let multiplier = -1;
-        }
-        if (y > 0 & x < 0) {
-            let multiplier = -1;
-        }
-        let q = Math.divide(Math.abs(x), Math.abs(y + y));
-        if ((x - 2 * q * y) < y) {
+        let q = Math.divide(a, b + b);
+        if ((a - (2 * (q * b))) < b) {
             return (q + q) * multiplier;
         } else {
             return (q + q + 1) * multiplier;
