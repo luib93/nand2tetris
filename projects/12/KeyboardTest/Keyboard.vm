@@ -59,21 +59,15 @@ label IF_FALSE0
 push local 1
 push constant 129
 eq
+not
 if-goto IF_TRUE1
 goto IF_FALSE1
 label IF_TRUE1
 push local 0
-call String.eraseLastChar 1
-pop temp 0
-call Output.backSpace 0
-pop temp 0
-goto IF_END1
-label IF_FALSE1
-push local 0
 push local 1
 call String.appendChar 2
 pop local 0
-label IF_END1
+label IF_FALSE1
 goto WHILE_EXP0
 label WHILE_END0
 push local 0
@@ -105,21 +99,15 @@ label IF_FALSE0
 push local 1
 push constant 129
 eq
+not
 if-goto IF_TRUE1
 goto IF_FALSE1
 label IF_TRUE1
 push local 0
-call String.eraseLastChar 1
-pop temp 0
-call Output.backSpace 0
-pop temp 0
-goto IF_END1
-label IF_FALSE1
-push local 0
 push local 1
 call String.appendChar 2
 pop local 0
-label IF_END1
+label IF_FALSE1
 goto WHILE_EXP0
 label WHILE_END0
 push local 0

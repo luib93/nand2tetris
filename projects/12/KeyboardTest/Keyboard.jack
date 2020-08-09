@@ -71,10 +71,7 @@ class Keyboard {
             if (c = 128) {
                 return s;
             }
-            if (c = 129) {
-                do s.eraseLastChar();
-                do Output.backSpace();
-            } else {
+            if (~(c = 129)) {
                 let s = s.appendChar(c);
             }
         }
@@ -97,10 +94,7 @@ class Keyboard {
             if (c = 128) {
                 return s.intValue();
             }
-            if (c = 129) {
-                do s.eraseLastChar();
-                do Output.backSpace();
-            } else {
+            if (~(c = 129)) {
                 let s = s.appendChar(c);
             }
         }
